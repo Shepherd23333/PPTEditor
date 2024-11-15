@@ -1,6 +1,6 @@
 package me.shepherd23333.gui;
 
-import org.apache.poi.xslf.usermodel.XMLSlideShow;
+import me.shepherd23333.file.PPTLoader;
 import org.apache.poi.xslf.usermodel.XSLFSlide;
 
 import javax.swing.*;
@@ -14,8 +14,8 @@ public class Viewer {
     private JPanel slidePanel;
     private JLabel slideNumber;
 
-    public Viewer(XMLSlideShow f) {
-        ppts = f.getSlides();
+    public Viewer(PPTLoader f) {
+        ppts = f.ppt.getSlides();
         totalSlides = ppts.size();
     }
 
@@ -38,7 +38,7 @@ public class Viewer {
 
     public JScrollPane thumbnailPanel() {
         JPanel tp = new JPanel();
-        tp.setLayout(new GridLayout(totalSlides, 1));
+        tp.setLayout(new GridLayout(Math.max(totalSlides, 5), 1));
 
         Dimension size = new Dimension(150, 100);
         for (int i = 0; i < totalSlides; i++) {

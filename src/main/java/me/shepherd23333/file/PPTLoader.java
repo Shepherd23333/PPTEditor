@@ -6,11 +6,27 @@ import org.apache.poi.xslf.usermodel.*;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class test {
-    public static void create() throws IOException {
+public class PPTLoader {
+    public File f;
+    public XMLSlideShow ppt;
+
+    public PPTLoader() {
+        ppt = new XMLSlideShow();
+        ppt.createSlide();
+    }
+
+    public PPTLoader(File f) throws IOException {
+        FileInputStream fi = new FileInputStream(f);
+        ppt = new XMLSlideShow(fi);
+        fi.close();
+        this.f = f;
+    }
+
+    public static void test() throws IOException {
         XMLSlideShow ppt = new XMLSlideShow();
 
         XSLFSlide slide = ppt.createSlide();//新建幻灯片
@@ -34,5 +50,12 @@ public class test {
         ppt.write(os);
         os.close();//导出结果
         System.out.println("Successful.");
+    }
+
+    public void save() throws IOException {
+        f.delete();
+        FileOutputStream os = new FileOutputStream(f);
+        ppt.write(os);
+        os.close();
     }
 }
