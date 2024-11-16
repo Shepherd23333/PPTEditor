@@ -11,18 +11,30 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class PPTLoader {
-    public File f;
-    public XMLSlideShow ppt;
+    public int totalSlides;
+    private File f;
+    private XMLSlideShow ppt;
+    private XSLFSlide pasteSlide = new XMLSlideShow().createSlide();
 
     public PPTLoader() {
         ppt = new XMLSlideShow();
         ppt.createSlide();
+        totalSlides = 1;
     }
 
     public PPTLoader(File f) throws IOException {
         FileInputStream fi = new FileInputStream(f);
         ppt = new XMLSlideShow(fi);
+        totalSlides = ppt.getSlides().size();
         fi.close();
+        this.f = f;
+    }
+
+    public boolean hasFile() {
+        return f != null;
+    }
+
+    public void setFile(File f) {
         this.f = f;
     }
 
@@ -57,5 +69,24 @@ public class PPTLoader {
         FileOutputStream os = new FileOutputStream(f);
         ppt.write(os);
         os.close();
+    }
+
+    /// Create a slide behind the index
+    public void createSlide(int index) {
+        XSLFSlide s = ppt.createSlide();
+        totalSlides++;
+        ppt.setSlideOrder(s, index + 1);
+    }
+
+    public void copySlide(int index) {
+        pasteSlide.importContent(ppt.getSlides().get(index));
+    }
+
+    /// Paste the slide behind the index
+    public void paste(int index) {
+        XSLFSlide s = ppt.createSlide();
+        s.importContent(pasteSlide);
+        totalSlides++;
+        ppt.setSlideOrder(s, index + 1);
     }
 }
