@@ -1,8 +1,11 @@
 package me.shepherd23333.gui;
 
 import me.shepherd23333.file.PPTLoader;
+import org.apache.poi.sl.usermodel.PaintStyle;
+import org.apache.poi.xslf.usermodel.*;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
 import javax.swing.event.PopupMenuEvent;
@@ -11,12 +14,17 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.List;
 
 public class Base extends JFrame {
+    private final int dpi = Toolkit.getDefaultToolkit().getScreenResolution();
     private PPTLoader ppt;
     private int currentSlide = 0;
-    private JPanel slidePanel, toolbar;
+    private JPanel toolbar;
+    private JLayeredPane slidePanel;
     private JLabel slideNumber;
     private JScrollPane thumbnailPanel;
     private boolean isOpened = false;
@@ -135,7 +143,6 @@ public class Base extends JFrame {
         edit.add(adds);
 
         bar.add(edit);
-
         setVisible(true);
     }
 
@@ -194,7 +201,8 @@ public class Base extends JFrame {
 
     private void thumbnailPanel() {
         JPanel tp = new JPanel();
-        tp.setLayout(new GridLayout(Math.max(ppt.totalSlides + 1, 5), 1, 0, 10));
+        tp.setBorder(new EmptyBorder(10, 10, 10, 10));
+        tp.setLayout(new GridLayout(Math.max(ppt.totalSlides, 5), 1, 0, 10));
 
         JPopupMenu menuButton = getPopupMenu(), menuPanel = new JPopupMenu();
 
@@ -205,14 +213,22 @@ public class Base extends JFrame {
         });
         menuPanel.add(cr);
 
-        Dimension pSize = new Dimension(150, 100);
         for (int i = 0; i < ppt.totalSlides; i++) {
-            JButton tb = new JButton();
-            //ImageIcon ti=new ImageIcon(ppts.get(i).getSlideMaster().get);
-            //tb.setIcon(ti);
-            tb.setPreferredSize(pSize);
+            Thumbnail tb = new Thumbnail();
             tb.setComponentPopupMenu(menuButton);
             int si = i;
+            XSLFSlide s = ppt.getSlide(si);
+            Dimension d = ppt.getSize();
+
+            BufferedImage img = new BufferedImage(d.width, d.height, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = img.createGraphics();
+            g.setPaint(Color.WHITE);
+            g.fill(new Rectangle2D.Float(0, 0, d.width, d.height));
+            s.draw(g);
+
+            ImageIcon ti = new ImageIcon(img.getScaledInstance(150, 100, Image.SCALE_SMOOTH));
+            tb.setIcon(ti);
+
             tb.addActionListener(a -> to(si));
             tb.addMouseListener(new MouseAdapter() {
                 @Override
@@ -273,40 +289,70 @@ public class Base extends JFrame {
         return m;
     }
 
-    private void mainDisplay() {
-        slidePanel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                drawSlide(g, currentSlide);
-            }
-        };
-        slidePanel.setBackground(Color.WHITE);
-    }
     private void showArea() {
         getContentPane().removeAll();
         toolBar();
         thumbnailPanel();
-        mainDisplay();
+        slidePanel = new JLayeredPane();
+        slidePanel.setBackground(Color.WHITE);
+        drawSlide(currentSlide);
         add(toolbar, BorderLayout.SOUTH);
-        JSplitPane jsp = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, thumbnailPanel, slidePanel);
+        JSplitPane jsp = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true, thumbnailPanel, slidePanel);
         jsp.setDividerLocation(200);
         add(jsp, BorderLayout.CENTER);
         revalidate();
         repaint();
     }
 
-    private void drawSlide(Graphics g, int i) {
-        String slideContent = "PPT " + (i + 1);
-        g.setColor(Color.BLACK);
-        g.setFont(new Font("Arial", Font.PLAIN, 30));
-        g.drawString(slideContent, 100, 100);
+    private void drawSlide(int index) {
+        slidePanel.removeAll();
+
+        XSLFSlide s = ppt.getSlide(index);
+        slidePanel.setBackground(s.getBackground().getFillColor());
+        List<XSLFShape> shapes = s.getShapes();
+        for (int i = 0; i < shapes.size(); i++) {
+            XSLFShape shape = shapes.get(i);
+            Rectangle2D pos = shape.getAnchor();
+            try {
+                if (shape instanceof XSLFPictureShape) {
+                    JLabel pic = new ImageLabel((XSLFPictureShape) shape);
+                    pic.setBounds(pos.getBounds());
+                    slidePanel.add(pic, i, 0);
+                } else if (shape instanceof XSLFConnectorShape) {
+
+                } else if (shape instanceof XSLFTextBox) {
+                    Textbox text = new Textbox();
+                    for (XSLFTextParagraph tp : ((XSLFTextBox) shape).getTextParagraphs()) {
+                        int a = Math.min(tp.getTextAlign().ordinal(), 3);
+                        for (XSLFTextRun tr : tp.getTextRuns()) {
+                            Color c = Color.BLACK;
+                            if (tr.getFontColor() instanceof PaintStyle.SolidPaint)
+                                c = ((PaintStyle.SolidPaint) tr.getFontColor()).getSolidColor().getColor();
+                            text.insertText(tr.getRawText(), c, (int) (1.0 * tr.getFontSize()), tr.getFontFamily());
+                        }
+                        Color c = Color.BLACK;
+                        if (tp.getBulletFontColor() instanceof PaintStyle.SolidPaint)
+                            c = ((PaintStyle.SolidPaint) tp.getBulletFontColor()).getSolidColor().getColor();
+                        text.insertText("\n", c, (int) (1.0 * tp.getDefaultFontSize()), tp.getDefaultFontFamily(), a);
+                    }
+                    text.setBounds(pos.getBounds());
+                    slidePanel.add(text, i, 0);
+                } else if (shape instanceof XSLFAutoShape) {
+
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        slidePanel.revalidate();
+        slidePanel.repaint();
     }
 
     private void to(int index) {
         if (0 <= index && index < ppt.totalSlides) {
+            drawSlide(index);
             currentSlide = index;
-            slidePanel.repaint();
             slideNumber.setText("PPT " + (currentSlide + 1) + "/" + ppt.totalSlides);
         }
     }

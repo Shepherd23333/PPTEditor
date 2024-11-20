@@ -71,11 +71,19 @@ public class PPTLoader {
         os.close();
     }
 
+    public Dimension getSize() {
+        return ppt.getPageSize();
+    }
+
     /// Create a slide behind the index
     public void createSlide(int index) {
         XSLFSlide s = ppt.createSlide();
         totalSlides++;
         ppt.setSlideOrder(s, index + 1);
+    }
+
+    public XSLFSlide getSlide(int index) {
+        return ppt.getSlides().get(index);
     }
 
     public void copySlide(int index) {
