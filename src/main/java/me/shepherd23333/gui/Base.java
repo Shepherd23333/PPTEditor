@@ -1,7 +1,6 @@
 package me.shepherd23333.gui;
 
 import me.shepherd23333.file.PPTLoader;
-import org.apache.poi.sl.usermodel.PaintStyle;
 import org.apache.poi.xslf.usermodel.*;
 
 import javax.swing.*;
@@ -20,7 +19,7 @@ import java.io.File;
 import java.util.List;
 
 public class Base extends JFrame {
-    private final int dpi = Toolkit.getDefaultToolkit().getScreenResolution();
+    //private final int dpi = Toolkit.getDefaultToolkit().getScreenResolution();
     private PPTLoader ppt;
     private int currentSlide = 0;
     private JPanel toolbar;
@@ -295,6 +294,7 @@ public class Base extends JFrame {
         thumbnailPanel();
         slidePanel = new JLayeredPane();
         slidePanel.setBackground(Color.WHITE);
+        slidePanel.setOpaque(true);
         drawSlide(currentSlide);
         add(toolbar, BorderLayout.SOUTH);
         JSplitPane jsp = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true, thumbnailPanel, slidePanel);
@@ -319,26 +319,24 @@ public class Base extends JFrame {
                     pic.setBounds(pos.getBounds());
                     slidePanel.add(pic, i, 0);
                 } else if (shape instanceof XSLFConnectorShape) {
-
+                    JPanel line = new LinePanel((XSLFConnectorShape) shape);
+                    slidePanel.add(line, i, 0);
                 } else if (shape instanceof XSLFTextBox) {
-                    Textbox text = new Textbox();
-                    for (XSLFTextParagraph tp : ((XSLFTextBox) shape).getTextParagraphs()) {
-                        int a = Math.min(tp.getTextAlign().ordinal(), 3);
-                        for (XSLFTextRun tr : tp.getTextRuns()) {
-                            Color c = Color.BLACK;
-                            if (tr.getFontColor() instanceof PaintStyle.SolidPaint)
-                                c = ((PaintStyle.SolidPaint) tr.getFontColor()).getSolidColor().getColor();
-                            text.insertText(tr.getRawText(), c, (int) (1.0 * tr.getFontSize()), tr.getFontFamily());
-                        }
-                        Color c = Color.BLACK;
-                        if (tp.getBulletFontColor() instanceof PaintStyle.SolidPaint)
-                            c = ((PaintStyle.SolidPaint) tp.getBulletFontColor()).getSolidColor().getColor();
-                        text.insertText("\n", c, (int) (1.0 * tp.getDefaultFontSize()), tp.getDefaultFontFamily(), a);
-                    }
+                    Textbox text = new Textbox((XSLFTextBox) shape);
                     text.setBounds(pos.getBounds());
                     slidePanel.add(text, i, 0);
                 } else if (shape instanceof XSLFAutoShape) {
-
+                    JPanel p = new JPanel();
+                    switch (((XSLFAutoShape) shape).getShapeType()) {
+                        case RECT:
+                            p = new RectanglePanel((XSLFAutoShape) shape);
+                            break;
+                        case ELLIPSE:
+                            p = new EllipsePanel((XSLFAutoShape) shape);
+                            break;
+                    }
+                    //p.setBounds(pos.getBounds());
+                    slidePanel.add(p, i, 0);
                 }
             } catch (Exception e) {
                 e.printStackTrace();

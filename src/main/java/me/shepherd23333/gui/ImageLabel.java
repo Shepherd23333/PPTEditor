@@ -17,8 +17,9 @@ public class ImageLabel extends JLabel {
     public ImageLabel(XSLFPictureShape pic) throws IOException {
         instance = pic;
         Image b = Utils.getImage(pic);
-        setSize(b.getWidth(null), b.getHeight(null));
         setIcon(new ImageIcon(b));
+        setSize(b.getWidth(null) + 5, b.getHeight(null) + 5);
+        setOpaque(true);
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -42,8 +43,8 @@ public class ImageLabel extends JLabel {
                 if (isDragging) {
                     int newWidth = Math.max(getWidth() + m.getX() - startX, 20), newHeight = Math.max(getHeight() + m.getY() - startY, 20);
                     try {
-                        Image newI = Utils.getImage(instance).getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH);
-                        setIcon(new ImageIcon(newI));
+                        Image newImage = Utils.getImage(instance).getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH);
+                        setIcon(new ImageIcon(newImage));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -63,9 +64,9 @@ public class ImageLabel extends JLabel {
     }
 
     @Override
-    protected void paintComponent(Graphics g) {
+    public void paintComponent(Graphics g) {
         super.paintComponent(g);
-        g.setColor(Color.WHITE);
-        g.fillOval(getWidth() - 5, getHeight() - 5, 10, 10);
+        g.setColor(Color.BLACK);
+        g.drawOval(getWidth() - 5, getHeight() - 5, 10, 10);
     }
 }

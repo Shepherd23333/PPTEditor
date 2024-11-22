@@ -10,6 +10,7 @@ public class Thumbnail extends JButton {
 
     public Thumbnail() {
         setPreferredSize(new Dimension(150, 100));
+        setOpaque(true);
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -32,7 +33,7 @@ public class Thumbnail extends JButton {
     }
 
     @Override
-    protected void paintComponent(Graphics g) {
+    public void paintComponent(Graphics g) {
         super.paintComponent(g);
         lock();
         //getIcon().paintIcon(this,g,0,0);
