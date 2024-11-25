@@ -7,66 +7,82 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 
 public class ImageLabel extends JLabel {
     private XSLFPictureShape instance;
-    private int startX, startY;
-    private boolean isDragging = false;
+    private Image image;
+    private Point start, oldP, newP;
+    private boolean isResizing = false, isSelected = false;
 
     public ImageLabel(XSLFPictureShape pic) throws IOException {
         instance = pic;
-        Image b = Utils.getImage(pic);
-        setIcon(new ImageIcon(b));
-        setSize(b.getWidth(null) + 5, b.getHeight(null) + 5);
-        setOpaque(true);
+        image = Utils.getImage(pic);
+        Rectangle2D r = pic.getAnchor();
+        image = image.getScaledInstance((int) r.getWidth(), (int) r.getHeight(), Image.SCALE_SMOOTH);
+        setBounds((int) (r.getX() - 5), (int) (r.getY() - 5), (int) (r.getWidth() + 10), (int) (r.getHeight() + 10));
+        setOpaque(false);
 
         addMouseListener(new MouseAdapter() {
             @Override
-            public void mousePressed(MouseEvent e) {
-                if (isOnResizeArea(e)) {
-                    isDragging = true;
-                    startX = e.getX();
-                    startY = e.getY();
+            public void mousePressed(MouseEvent m) {
+                start = getLocation();
+                oldP = m.getLocationOnScreen();
+                if (isSelected && isOnResizeArea(m)) {
+                    isResizing = true;
+                    start = m.getPoint();
                 }
             }
 
             @Override
-            public void mouseReleased(MouseEvent e) {
-                isDragging = false;
-                instance.setAnchor(getBounds());
+            public void mouseReleased(MouseEvent m) {
+                isResizing = false;
+                isSelected = true;
+                Rectangle r = getBounds();
+                instance.setAnchor(new Rectangle(r.x + 5, r.y + 5, r.width - 10, r.height - 10));
+                repaint();
             }
         });
         addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseDragged(MouseEvent m) {
-                if (isDragging) {
-                    int newWidth = Math.max(getWidth() + m.getX() - startX, 20), newHeight = Math.max(getHeight() + m.getY() - startY, 20);
+                if (isResizing) {
+                    int newWidth = Math.max(getWidth() - 10 + m.getX() - start.x, 32), newHeight = Math.max(getHeight() - 10 + m.getY() - start.y, 32);
                     try {
-                        Image newImage = Utils.getImage(instance).getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH);
-                        setIcon(new ImageIcon(newImage));
+                        image = Utils.getImage(instance).getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
 
-                    setSize(new Dimension(newWidth, newHeight));
-                    startX = m.getX();
-                    startY = m.getY();
+                    setSize(new Dimension(newWidth + 10, newHeight + 10));
+                    start = m.getPoint();
                     repaint();
+                } else {
+                    newP = m.getLocationOnScreen();
+                    setLocation(start.x + newP.x - oldP.x, start.y + newP.y - oldP.y);
                 }
             }
         });
     }
 
-    private boolean isOnResizeArea(MouseEvent e) {
+    public void deselect() {
+        isSelected = false;
+        repaint();
+    }
+
+    private boolean isOnResizeArea(MouseEvent m) {
         int buttonX = getWidth() - 10, buttonY = getHeight() - 10;
-        return buttonX <= e.getX() && e.getX() <= buttonX + 10 && buttonY <= e.getY() && e.getY() <= buttonY + 10;
+        return buttonX <= m.getX() && m.getX() <= buttonX + 10 && buttonY <= m.getY() && m.getY() <= buttonY + 10;
     }
 
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
-        g.setColor(Color.BLACK);
-        g.drawOval(getWidth() - 5, getHeight() - 5, 10, 10);
+        g.drawImage(image, 5, 5, this);
+        if (isSelected) {
+            g.setColor(Color.BLACK);
+            g.drawOval(getWidth() - 10, getHeight() - 10, 10, 10);
+        }
     }
 }

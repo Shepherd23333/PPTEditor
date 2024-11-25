@@ -31,7 +31,7 @@ public class Base extends JFrame {
 
     public Base() {
         setTitle("PPT Editor");
-        setSize(1024, 576);
+        setSize(1440, 810);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -108,25 +108,31 @@ public class Base extends JFrame {
         });
         bar.add(file);
 
-        JMenu edit = new JMenu("Edit");
-
-        JMenu adds = new JMenu("Add..");
+        JMenu insert = new JMenu("Insert");
 
         JMenuItem blank = new JMenuItem("PPT");
         blank.addActionListener(a -> {
             ppt.createSlide(currentSlide);
             showArea();
         });
-        adds.add(blank);
+        insert.add(blank);
 
-        JMenuItem text = new JMenuItem("Textbox");
-        adds.add(text);
+        JMenuItem textbox = new JMenuItem("Textbox");
+        textbox.addActionListener(a -> {
+            XSLFSlide s = ppt.getSlide(currentSlide);
+            Textbox tb = new Textbox(s.createTextBox(), 100, 100);
+            slidePanel.add(tb, slidePanel.highestLayer() + 1, 0);
+            slidePanel.revalidate();
+            slidePanel.repaint();
+            tb.requestFocusInWindow();
+        });
+        insert.add(textbox);
 
-        adds.addMenuListener(new MenuListener() {
+        insert.addMenuListener(new MenuListener() {
             @Override
             public void menuSelected(MenuEvent e) {
                 blank.setEnabled(isOpened);
-                text.setEnabled(isOpened);
+                textbox.setEnabled(isOpened);
             }
 
             @Override
@@ -139,9 +145,8 @@ public class Base extends JFrame {
 
             }
         });
-        edit.add(adds);
+        bar.add(insert);
 
-        bar.add(edit);
         setVisible(true);
     }
 
@@ -296,6 +301,22 @@ public class Base extends JFrame {
         slidePanel.setBackground(Color.WHITE);
         slidePanel.setOpaque(true);
         drawSlide(currentSlide);
+        slidePanel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                for (Component c : slidePanel.getComponents())
+                    if (!c.contains(e.getPoint()))
+                        if (c instanceof ImageLabel)
+                            ((ImageLabel) c).deselect();
+                        else if (c instanceof Textbox) {
+                            if (((Textbox) c).getText().isEmpty())
+                                slidePanel.remove(c);
+                            else
+                                c.transferFocus();
+                        } else if (c instanceof AutoPanel)
+                            ((AutoPanel) c).deselect();
+            }
+        });
         add(toolbar, BorderLayout.SOUTH);
         JSplitPane jsp = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true, thumbnailPanel, slidePanel);
         jsp.setDividerLocation(200);
@@ -312,18 +333,15 @@ public class Base extends JFrame {
         List<XSLFShape> shapes = s.getShapes();
         for (int i = 0; i < shapes.size(); i++) {
             XSLFShape shape = shapes.get(i);
-            Rectangle2D pos = shape.getAnchor();
             try {
                 if (shape instanceof XSLFPictureShape) {
                     JLabel pic = new ImageLabel((XSLFPictureShape) shape);
-                    pic.setBounds(pos.getBounds());
                     slidePanel.add(pic, i, 0);
                 } else if (shape instanceof XSLFConnectorShape) {
                     JPanel line = new LinePanel((XSLFConnectorShape) shape);
                     slidePanel.add(line, i, 0);
                 } else if (shape instanceof XSLFTextBox) {
                     Textbox text = new Textbox((XSLFTextBox) shape);
-                    text.setBounds(pos.getBounds());
                     slidePanel.add(text, i, 0);
                 } else if (shape instanceof XSLFAutoShape) {
                     JPanel p = new JPanel();
@@ -335,7 +353,6 @@ public class Base extends JFrame {
                             p = new EllipsePanel((XSLFAutoShape) shape);
                             break;
                     }
-                    //p.setBounds(pos.getBounds());
                     slidePanel.add(p, i, 0);
                 }
             } catch (Exception e) {
