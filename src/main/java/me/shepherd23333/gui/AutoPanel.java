@@ -24,19 +24,18 @@ public abstract class AutoPanel extends JPanel {
                 if (isSelected && isOnResizeArea(m)) {
                     isResizing = true;
                     start = m.getPoint();
-                } else if (contains(m.getPoint())) {
+                } else if (contains(c = m.getPoint())) {
                     start = getLocation();
-                    c = m.getPoint();
                     oldP = m.getLocationOnScreen();
                 }
             }
 
             @Override
             public void mouseReleased(MouseEvent m) {
+                isSelected = isResizing || contains(c);
                 isResizing = false;
-                isSelected = contains(c);
                 Rectangle r = getBounds();
-                instance.setAnchor(new Rectangle(r.x - 5, r.y - 5, r.width - 10, r.height - 10));
+                instance.setAnchor(new Rectangle(r.x + 5, r.y + 5, r.width - 10, r.height - 10));
                 repaint();
             }
         });
@@ -46,7 +45,7 @@ public abstract class AutoPanel extends JPanel {
                 if (isResizing) {
                     int newWidth = Math.max(getWidth() - 10 + m.getX() - start.x, 32), newHeight = Math.max(getHeight() - 10 + m.getY() - start.y, 32);
                     resizeShape(newWidth, newHeight);
-                    setSize(new Dimension(newWidth + 10, newHeight + 10));
+                    setSize(newWidth + 10, newHeight + 10);
                     start = m.getPoint();
                     repaint();
                 } else if (contains(c)) {

@@ -16,10 +16,28 @@ public class ImageLabel extends JLabel {
     private Point start, oldP, newP;
     private boolean isResizing = false, isSelected = false;
 
-    public ImageLabel(XSLFPictureShape pic) throws IOException {
+    public ImageLabel(XSLFPictureShape pic) {
+        Rectangle2D r = pic.getAnchor();
+        try {
+            init(pic, r.getX(), r.getY());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public ImageLabel(XSLFPictureShape pic, double x, double y) {
+        try {
+            init(pic, x, y);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void init(XSLFPictureShape pic, double x, double y) throws IOException {
         instance = pic;
         image = Utils.getImage(pic);
         Rectangle2D r = pic.getAnchor();
+        instance.setAnchor(new Rectangle2D.Double(x, y, r.getWidth(), r.getHeight()));
         image = image.getScaledInstance((int) r.getWidth(), (int) r.getHeight(), Image.SCALE_SMOOTH);
         setBounds((int) (r.getX() - 5), (int) (r.getY() - 5), (int) (r.getWidth() + 10), (int) (r.getHeight() + 10));
         setOpaque(false);

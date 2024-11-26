@@ -1,6 +1,8 @@
 package me.shepherd23333.file;
 
+import org.apache.poi.sl.usermodel.PictureData;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
+import org.apache.poi.xslf.usermodel.XSLFPictureData;
 import org.apache.poi.xslf.usermodel.XSLFSlide;
 
 import java.awt.*;
@@ -44,6 +46,10 @@ public class PPTLoader {
         os.close();
     }
 
+    public XSLFPictureData add(byte[] pic, String type) {
+        PictureData.PictureType t = type.equals("jpg") ? PictureData.PictureType.JPEG : PictureData.PictureType.PNG;
+        return ppt.addPicture(pic, t);
+    }
     public Dimension getSize() {
         return ppt.getPageSize();
     }

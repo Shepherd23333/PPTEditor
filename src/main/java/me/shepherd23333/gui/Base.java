@@ -1,6 +1,7 @@
 package me.shepherd23333.gui;
 
 import me.shepherd23333.file.PPTLoader;
+import org.apache.poi.util.IOUtils;
 import org.apache.poi.xslf.usermodel.*;
 
 import javax.swing.*;
@@ -16,13 +17,17 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.List;
 
 public class Base extends JFrame {
     //private final int dpi = Toolkit.getDefaultToolkit().getScreenResolution();
     private PPTLoader ppt;
     private int currentSlide = 0;
-    private JPanel toolbar;
+    private JComponent selectedComponent;
+    private JPanel statusBar;
+    private JPanel editBar, insertBar;
     private JLayeredPane slidePanel;
     private JLabel slideNumber;
     private JScrollPane thumbnailPanel;
@@ -52,7 +57,7 @@ public class Base extends JFrame {
         file.add(create);
 
         JMenuItem open = new JMenuItem("Open File");
-        open.addActionListener(a -> open());
+        open.addActionListener(a -> openPPT());
         file.add(open);
 
         JMenuItem save = new JMenuItem("Save");
@@ -108,49 +113,94 @@ public class Base extends JFrame {
         });
         bar.add(file);
 
-        JMenu insert = new JMenu("Insert");
+        editBar = new JPanel();
+        JButton edit = new JButton("Edit");
 
-        JMenuItem blank = new JMenuItem("PPT");
+        JComboBox textFont = new JComboBox<>(new String[]{"a", "b", "c"});
+        editBar.add(textFont);
+
+        JComboBox textSize = new JComboBox<>(new Integer[]{5, 10, 15});
+        textSize.setEditable(true);
+        editBar.add(textSize);
+
+        JComboBox textColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
+        editBar.add(textColor);
+
+        JComboBox textAlign = new JComboBox<>(new Integer[]{0, 1, 2, 3});
+        editBar.add(textAlign);
+
+        JComboBox drawColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
+        editBar.add(drawColor);
+
+        JComboBox fillColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
+        editBar.add(fillColor);
+
+        edit.addActionListener(a -> {
+            textFont.setEnabled(selectedComponent instanceof TextboxPanel);
+            textSize.setEnabled(selectedComponent instanceof TextboxPanel);
+            textColor.setEnabled(selectedComponent instanceof TextboxPanel);
+            textAlign.setEnabled(selectedComponent instanceof TextboxPanel);
+            drawColor.setEnabled(selectedComponent instanceof AutoPanel || selectedComponent instanceof LinePanel);
+            fillColor.setEnabled(selectedComponent instanceof AutoPanel);
+            changeToolBar(editBar);
+        });
+        bar.add(edit);
+
+        insertBar = new JPanel();
+        JButton insert = new JButton("Insert");
+
+        JButton blank = new JButton("PPT");
         blank.addActionListener(a -> {
             ppt.createSlide(currentSlide);
             showArea();
         });
-        insert.add(blank);
+        insertBar.add(blank);
 
-        JMenuItem textbox = new JMenuItem("Textbox");
+        JButton textbox = new JButton("Textbox");
         textbox.addActionListener(a -> {
             XSLFSlide s = ppt.getSlide(currentSlide);
-            Textbox tb = new Textbox(s.createTextBox(), 100, 100);
-            slidePanel.add(tb, slidePanel.highestLayer() + 1, 0);
-            slidePanel.revalidate();
-            slidePanel.repaint();
-            tb.requestFocusInWindow();
+            TextboxPanel tb = new TextboxPanel(s.createTextBox(), 100, 100);
+            drawSlide(currentSlide);
+            tb.select();
         });
-        insert.add(textbox);
+        insertBar.add(textbox);
 
-        insert.addMenuListener(new MenuListener() {
-            @Override
-            public void menuSelected(MenuEvent e) {
-                blank.setEnabled(isOpened);
-                textbox.setEnabled(isOpened);
-            }
+        JButton picture = new JButton("Picture");
+        picture.addActionListener(a -> insertPicture());
+        insertBar.add(picture);
 
-            @Override
-            public void menuDeselected(MenuEvent e) {
+        JButton line = new JButton("Line");
+        insertBar.add(line);
 
-            }
+        JButton rect = new JButton("Rectangle");
+        insertBar.add(rect);
 
-            @Override
-            public void menuCanceled(MenuEvent e) {
+        JButton elp = new JButton("Ellipse");
+        insertBar.add(elp);
 
-            }
+        insert.addActionListener(a -> {
+            blank.setEnabled(isOpened);
+            textbox.setEnabled(isOpened);
+            picture.setEnabled(isOpened);
+            changeToolBar(insertBar);
         });
         bar.add(insert);
 
+        edit.doClick();
         setVisible(true);
     }
 
-    private void open() {
+    private void changeToolBar(JPanel toolbar) {
+        BorderLayout layout = (BorderLayout) getContentPane().getLayout();
+        Component c = layout.getLayoutComponent(BorderLayout.NORTH);
+        if (c != null)
+            remove(c);
+        add(toolbar, BorderLayout.NORTH);
+        revalidate();
+        repaint();
+    }
+
+    private void openPPT() {
         JFileChooser jfc = new JFileChooser();
         jfc.setFileSelectionMode(JFileChooser.FILES_ONLY);
         jfc.setAcceptAllFileFilterUsed(false);
@@ -187,9 +237,32 @@ public class Base extends JFrame {
         }
     }
 
-    private void toolBar() {
-        toolbar = new JPanel();
-        toolbar.setLayout(new FlowLayout(FlowLayout.LEFT));
+    private void insertPicture() {
+        JFileChooser jfc = new JFileChooser();
+        jfc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        jfc.setAcceptAllFileFilterUsed(false);
+        jfc.addChoosableFileFilter(new FileNameExtensionFilter("JPEG(*.jpg)", "jpg"));
+        jfc.addChoosableFileFilter(new FileNameExtensionFilter("PNG(*.png)", "png"));
+        int res = jfc.showOpenDialog(this);
+        if (res == JFileChooser.APPROVE_OPTION) {
+            File f = jfc.getSelectedFile();
+            try {
+                byte[] picture = IOUtils.toByteArray(new FileInputStream(f));
+                String fileName = f.getName();
+                String ext = fileName.substring(fileName.lastIndexOf('.') + 1);
+                XSLFPictureData data = ppt.add(picture, ext);
+                XSLFSlide s = ppt.getSlide(currentSlide);
+                JLabel pic = new ImageLabel(s.createPicture(data), 100, 100);
+                drawSlide(currentSlide);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void statusBar() {
+        statusBar = new JPanel();
+        statusBar.setLayout(new FlowLayout(FlowLayout.LEFT));
 
         JButton prev = new JButton("Previous");
         prev.addActionListener(a -> toPrevious());
@@ -198,9 +271,9 @@ public class Base extends JFrame {
 
         slideNumber = new JLabel("PPT " + (currentSlide + 1) + "/" + ppt.totalSlides);
 
-        toolbar.add(prev);
-        toolbar.add(next);
-        toolbar.add(slideNumber);
+        statusBar.add(prev);
+        statusBar.add(next);
+        statusBar.add(slideNumber);
     }
 
     private void thumbnailPanel() {
@@ -295,7 +368,8 @@ public class Base extends JFrame {
 
     private void showArea() {
         getContentPane().removeAll();
-        toolBar();
+        changeToolBar(editBar);
+        statusBar();
         thumbnailPanel();
         slidePanel = new JLayeredPane();
         slidePanel.setBackground(Color.WHITE);
@@ -308,16 +382,18 @@ public class Base extends JFrame {
                     if (!c.contains(e.getPoint()))
                         if (c instanceof ImageLabel)
                             ((ImageLabel) c).deselect();
-                        else if (c instanceof Textbox) {
-                            if (((Textbox) c).getText().isEmpty())
+                        else if (c instanceof TextboxPanel) {
+                            if (((TextboxPanel) c).isEmpty())
                                 slidePanel.remove(c);
                             else
-                                c.transferFocus();
+                                ((TextboxPanel) c).deselect();
                         } else if (c instanceof AutoPanel)
                             ((AutoPanel) c).deselect();
+                        else if (c instanceof LinePanel)
+                            ((LinePanel) c).deselect();
             }
         });
-        add(toolbar, BorderLayout.SOUTH);
+        add(statusBar, BorderLayout.SOUTH);
         JSplitPane jsp = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true, thumbnailPanel, slidePanel);
         jsp.setDividerLocation(200);
         add(jsp, BorderLayout.CENTER);
@@ -341,7 +417,7 @@ public class Base extends JFrame {
                     JPanel line = new LinePanel((XSLFConnectorShape) shape);
                     slidePanel.add(line, i, 0);
                 } else if (shape instanceof XSLFTextBox) {
-                    Textbox text = new Textbox((XSLFTextBox) shape);
+                    TextboxPanel text = new TextboxPanel((XSLFTextBox) shape);
                     slidePanel.add(text, i, 0);
                 } else if (shape instanceof XSLFAutoShape) {
                     JPanel p = new JPanel();
