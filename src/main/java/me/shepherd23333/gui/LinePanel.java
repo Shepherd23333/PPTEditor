@@ -2,7 +2,6 @@ package me.shepherd23333.gui;
 
 import org.apache.poi.xslf.usermodel.XSLFConnectorShape;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -10,7 +9,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
-public class LinePanel extends JPanel {
+public class LinePanel extends DraggablePanel {
     XSLFConnectorShape instance;
     Line2D.Double line;
     boolean isSelected = false, isResizing = false;

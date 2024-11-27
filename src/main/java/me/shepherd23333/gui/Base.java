@@ -22,12 +22,13 @@ import java.io.IOException;
 import java.util.List;
 
 public class Base extends JFrame {
-    //private final int dpi = Toolkit.getDefaultToolkit().getScreenResolution();
+    private final GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
     private PPTLoader ppt;
     private int currentSlide = 0;
-    private JComponent selectedComponent;
+    private Component selectedComponent;
     private JPanel statusBar;
     private JPanel editBar, insertBar;
+    private JButton edit, insert;
     private JLayeredPane slidePanel;
     private JLabel slideNumber;
     private JScrollPane thumbnailPanel;
@@ -88,6 +89,7 @@ public class Base extends JFrame {
             ppt = null;
             isOpened = false;
             getContentPane().removeAll();
+            add(editBar, BorderLayout.NORTH);
             revalidate();
             repaint();
         });
@@ -114,25 +116,49 @@ public class Base extends JFrame {
         bar.add(file);
 
         editBar = new JPanel();
-        JButton edit = new JButton("Edit");
+        edit = new JButton("Edit");
 
-        JComboBox textFont = new JComboBox<>(new String[]{"a", "b", "c"});
+        JComboBox<String> textFont = new JComboBox<>(ge.getAvailableFontFamilyNames());
+        textFont.addActionListener(a -> {
+            TextboxPanel tb = (TextboxPanel) selectedComponent;
+            tb.setFont((String) textFont.getSelectedItem());
+        });
         editBar.add(textFont);
 
-        JComboBox textSize = new JComboBox<>(new Integer[]{5, 10, 15});
+        JComboBox<Integer> textSize = new JComboBox<>(new Integer[]{5, 10, 15, 20});
+        textSize.addActionListener(a -> {
+            TextboxPanel tb = (TextboxPanel) selectedComponent;
+            tb.setSize((int) textSize.getSelectedItem());
+        });
         textSize.setEditable(true);
         editBar.add(textSize);
 
-        JComboBox textColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
+        JComboBox<Color> textColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.GREEN, Color.BLUE});
+        textColor.addActionListener(a -> {
+            TextboxPanel tb = (TextboxPanel) selectedComponent;
+            tb.setColor((Color) textColor.getSelectedItem());
+        });
         editBar.add(textColor);
 
-        JComboBox textAlign = new JComboBox<>(new Integer[]{0, 1, 2, 3});
+        JComboBox<Integer> textAlign = new JComboBox<>(new Integer[]{0, 1, 2, 3});
+        textAlign.addActionListener(a -> {
+            TextboxPanel tb = (TextboxPanel) selectedComponent;
+            tb.setAlign((int) textAlign.getSelectedItem());
+        });
         editBar.add(textAlign);
 
-        JComboBox drawColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
+        JComboBox<Color> drawColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
+        drawColor.addActionListener(a -> {
+            AutoShapePanel p = (AutoShapePanel) selectedComponent;
+            p.setDrawColor((Color) drawColor.getSelectedItem());
+        });
         editBar.add(drawColor);
 
-        JComboBox fillColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
+        JComboBox<Color> fillColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
+        fillColor.addActionListener(a -> {
+            AutoShapePanel p = (AutoShapePanel) selectedComponent;
+            p.setDrawColor((Color) fillColor.getSelectedItem());
+        });
         editBar.add(fillColor);
 
         edit.addActionListener(a -> {
@@ -140,27 +166,29 @@ public class Base extends JFrame {
             textSize.setEnabled(selectedComponent instanceof TextboxPanel);
             textColor.setEnabled(selectedComponent instanceof TextboxPanel);
             textAlign.setEnabled(selectedComponent instanceof TextboxPanel);
-            drawColor.setEnabled(selectedComponent instanceof AutoPanel || selectedComponent instanceof LinePanel);
-            fillColor.setEnabled(selectedComponent instanceof AutoPanel);
-            changeToolBar(editBar);
+            drawColor.setEnabled(selectedComponent instanceof AutoShapePanel || selectedComponent instanceof LinePanel);
+            fillColor.setEnabled(selectedComponent instanceof AutoShapePanel);
+            setToolBar(editBar);
         });
         bar.add(edit);
 
         insertBar = new JPanel();
-        JButton insert = new JButton("Insert");
+        insert = new JButton("Insert");
 
         JButton blank = new JButton("PPT");
         blank.addActionListener(a -> {
             ppt.createSlide(currentSlide);
-            showArea();
+            insert.doClick();
         });
         insertBar.add(blank);
 
         JButton textbox = new JButton("Textbox");
         textbox.addActionListener(a -> {
             XSLFSlide s = ppt.getSlide(currentSlide);
-            TextboxPanel tb = new TextboxPanel(s.createTextBox(), 100, 100);
-            drawSlide(currentSlide);
+            TextboxPanel tb = new TextboxPanel(s.createTextBox(), 100, 100, true);
+            slidePanel.add(tb, slidePanel.getComponentCount(), 0);
+            slidePanel.revalidate();
+            slidePanel.repaint();
             tb.select();
         });
         insertBar.add(textbox);
@@ -182,7 +210,10 @@ public class Base extends JFrame {
             blank.setEnabled(isOpened);
             textbox.setEnabled(isOpened);
             picture.setEnabled(isOpened);
-            changeToolBar(insertBar);
+            line.setEnabled(isOpened);
+            rect.setEnabled(isOpened);
+            elp.setEnabled(isOpened);
+            setToolBar(insertBar);
         });
         bar.add(insert);
 
@@ -190,9 +221,13 @@ public class Base extends JFrame {
         setVisible(true);
     }
 
-    private void changeToolBar(JPanel toolbar) {
+    private Component getToolBar() {
         BorderLayout layout = (BorderLayout) getContentPane().getLayout();
-        Component c = layout.getLayoutComponent(BorderLayout.NORTH);
+        return layout.getLayoutComponent(BorderLayout.NORTH);
+    }
+
+    private void setToolBar(JPanel toolbar) {
+        Component c = getToolBar();
         if (c != null)
             remove(c);
         add(toolbar, BorderLayout.NORTH);
@@ -252,7 +287,7 @@ public class Base extends JFrame {
                 String ext = fileName.substring(fileName.lastIndexOf('.') + 1);
                 XSLFPictureData data = ppt.add(picture, ext);
                 XSLFSlide s = ppt.getSlide(currentSlide);
-                JLabel pic = new ImageLabel(s.createPicture(data), 100, 100);
+                JPanel pic = new ImagePanel(s.createPicture(data), 100, 100);
                 drawSlide(currentSlide);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -368,7 +403,7 @@ public class Base extends JFrame {
 
     private void showArea() {
         getContentPane().removeAll();
-        changeToolBar(editBar);
+        setToolBar(editBar);
         statusBar();
         thumbnailPanel();
         slidePanel = new JLayeredPane();
@@ -378,19 +413,29 @@ public class Base extends JFrame {
         slidePanel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                selectedComponent = null;
+                label:
+                for (int i = slidePanel.getComponentCount(); i >= 0; i--)
+                    for (Component c : slidePanel.getComponentsInLayer(i)) {
+                        Point p = SwingUtilities.convertPoint(slidePanel, e.getPoint(), c);
+                        if (c.contains(p)) {
+                            selectedComponent = c;
+                            break label;
+                        }
+                    }
                 for (Component c : slidePanel.getComponents())
-                    if (!c.contains(e.getPoint()))
-                        if (c instanceof ImageLabel)
-                            ((ImageLabel) c).deselect();
-                        else if (c instanceof TextboxPanel) {
-                            if (((TextboxPanel) c).isEmpty())
-                                slidePanel.remove(c);
-                            else
-                                ((TextboxPanel) c).deselect();
-                        } else if (c instanceof AutoPanel)
-                            ((AutoPanel) c).deselect();
-                        else if (c instanceof LinePanel)
-                            ((LinePanel) c).deselect();
+                    if (c != selectedComponent && c instanceof DraggablePanel) {
+                        if (c instanceof TextboxPanel && ((TextboxPanel) c).isEmpty())
+                            slidePanel.remove(c);
+                        else
+                            ((DraggablePanel) c).deselect();
+                    }
+                slidePanel.repaint();
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                (getToolBar() == editBar ? edit : insert).doClick();
             }
         });
         add(statusBar, BorderLayout.SOUTH);
@@ -411,7 +456,7 @@ public class Base extends JFrame {
             XSLFShape shape = shapes.get(i);
             try {
                 if (shape instanceof XSLFPictureShape) {
-                    JLabel pic = new ImageLabel((XSLFPictureShape) shape);
+                    JPanel pic = new ImagePanel((XSLFPictureShape) shape);
                     slidePanel.add(pic, i, 0);
                 } else if (shape instanceof XSLFConnectorShape) {
                     JPanel line = new LinePanel((XSLFConnectorShape) shape);

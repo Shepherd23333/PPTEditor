@@ -3,20 +3,19 @@ package me.shepherd23333.gui;
 import me.shepherd23333.Utils;
 import org.apache.poi.xslf.usermodel.XSLFPictureShape;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 
-public class ImageLabel extends JLabel {
+public class ImagePanel extends DraggablePanel {
     private XSLFPictureShape instance;
     private Image image;
     private Point start, oldP, newP;
     private boolean isResizing = false, isSelected = false;
 
-    public ImageLabel(XSLFPictureShape pic) {
+    public ImagePanel(XSLFPictureShape pic) {
         Rectangle2D r = pic.getAnchor();
         try {
             init(pic, r.getX(), r.getY());
@@ -25,7 +24,7 @@ public class ImageLabel extends JLabel {
         }
     }
 
-    public ImageLabel(XSLFPictureShape pic, double x, double y) {
+    public ImagePanel(XSLFPictureShape pic, double x, double y) {
         try {
             init(pic, x, y);
         } catch (IOException e) {

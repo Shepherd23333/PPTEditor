@@ -13,31 +13,31 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import java.awt.*;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
 import java.util.Arrays;
 import java.util.Iterator;
 
-public class TextboxPanel extends JPanel {
+public class TextboxPanel extends DraggablePanel {
     private XSLFTextBox instance;
-    boolean isSelected = false, isResizing = false;
+    boolean isSelected = false, isResizing = false, isNew;
     Point start, oldP, newP, c;
     private JTextPane textPane;
+    private int insertPos;
+    private String selectedText;
 
     public TextboxPanel(XSLFTextBox tb) {
         Rectangle2D r = tb.getAnchor();
-        init(tb, r.getX(), r.getY());
+        init(tb, r.getX(), r.getY(), false);
     }
 
-    public TextboxPanel(XSLFTextBox tb, double x, double y) {
-        init(tb, x, y);
+    public TextboxPanel(XSLFTextBox tb, double x, double y, boolean in) {
+        init(tb, x, y, in);
     }
 
-    private void init(XSLFTextBox tb, double x, double y) {
+    private void init(XSLFTextBox tb, double x, double y, boolean in) {
         instance = tb;
+        isNew = in;
         textPane = new JTextPane();
         Rectangle2D r = tb.getAnchor();
         instance.setAnchor(new Rectangle2D.Double(x, y, r.getWidth(), r.getHeight()));
@@ -72,10 +72,21 @@ public class TextboxPanel extends JPanel {
             public void focusGained(FocusEvent e) {
                 isSelected = true;
                 repaint();
+                Container c = getParent();
+                Point p = MouseInfo.getPointerInfo().getLocation();
+                SwingUtilities.convertPointFromScreen(p, c);
+                MouseEvent me = new MouseEvent(c, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(), 0, p.x, p.y,
+                        1, false);
+                for (MouseListener l : c.getMouseListeners()) {
+                    l.mousePressed(me);
+                    l.mouseReleased(me);
+                }
             }
 
             @Override
             public void focusLost(FocusEvent e) {
+                insertPos = textPane.getSelectionStart();
+                selectedText = textPane.getSelectedText();
                 save();
                 Rectangle r = getBounds();
                 instance.setAnchor(new Rectangle(r.x + 5, r.y + 5, r.width - 10, r.height - 10));
@@ -107,7 +118,8 @@ public class TextboxPanel extends JPanel {
             @Override
             public void mouseDragged(MouseEvent m) {
                 if (isResizing) {
-                    int newWidth = Math.max(getWidth() - 10 + m.getX() - start.x, 32), newHeight = Math.max(getHeight() - 10 + m.getY() - start.y, 32);
+                    int newWidth = Math.max(getWidth() - 10 + m.getX() - start.x, 32),
+                            newHeight = Math.max(getHeight() - 10 + m.getY() - start.y, 32);
                     textPane.setSize(newWidth, newHeight);
                     setSize(newWidth + 10, newHeight + 10);
                     start = m.getPoint();
@@ -121,7 +133,7 @@ public class TextboxPanel extends JPanel {
     }
 
     public boolean isEmpty() {
-        return textPane.getText().isEmpty();
+        return !isNew && textPane.getText().isEmpty();
     }
 
     public void select() {
@@ -131,9 +143,46 @@ public class TextboxPanel extends JPanel {
     }
 
     public void deselect() {
+        if (isNew) {
+            isNew = false;
+            return;
+        }
         textPane.transferFocus();
         isSelected = false;
         repaint();
+    }
+
+    public void setFont(String font) {
+        SimpleAttributeSet set = new SimpleAttributeSet();
+        StyleConstants.setFontFamily(set, font);
+        if (textPane.getSelectedText() == null)
+            textPane.setParagraphAttributes(set, false);
+        else
+            textPane.setCharacterAttributes(set, false);
+    }
+
+    public void setSize(int size) {
+        SimpleAttributeSet set = new SimpleAttributeSet();
+        StyleConstants.setFontSize(set, size);
+        if (textPane.getSelectedText() == null)
+            textPane.setParagraphAttributes(set, false);
+        else
+            textPane.setCharacterAttributes(set, false);
+    }
+
+    public void setColor(Color color) {
+        SimpleAttributeSet set = new SimpleAttributeSet();
+        StyleConstants.setForeground(set, color);
+        if (textPane.getSelectedText() == null)
+            textPane.setParagraphAttributes(set, false);
+        else
+            textPane.setCharacterAttributes(set, false);
+    }
+
+    public void setAlign(int align) {
+        SimpleAttributeSet set = new SimpleAttributeSet();
+        StyleConstants.setAlignment(set, align);
+        textPane.setParagraphAttributes(set, false);
     }
 
     private boolean isOnMoveArea(Point p) {
@@ -153,7 +202,8 @@ public class TextboxPanel extends JPanel {
         StyleConstants.setFontSize(set, size);
         StyleConstants.setFontFamily(set, font);
         StyleConstants.setAlignment(set, align);
-        doc.setParagraphAttributes(textPane.getText().length(), doc.getLength() - textPane.getText().length(), set, false);
+        doc.setParagraphAttributes(textPane.getText().length(), doc.getLength() - textPane.getText().length(),
+                set, false);
         try {
             doc.insertString(doc.getLength(), text, set);
         } catch (Exception e) {

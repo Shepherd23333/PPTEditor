@@ -2,18 +2,17 @@ package me.shepherd23333.gui;
 
 import org.apache.poi.xslf.usermodel.XSLFAutoShape;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-public abstract class AutoPanel extends JPanel {
+public abstract class AutoShapePanel extends DraggablePanel {
     XSLFAutoShape instance;
     Shape auto;
     boolean isFilled, isSelected = false, isResizing = false;
     Point start, oldP, newP, c;
 
-    public AutoPanel(XSLFAutoShape r) {
+    public AutoShapePanel(XSLFAutoShape r) {
         instance = r;
         isFilled = r.getFillColor() != null;
         setOpaque(false);
@@ -43,7 +42,8 @@ public abstract class AutoPanel extends JPanel {
             @Override
             public void mouseDragged(MouseEvent m) {
                 if (isResizing) {
-                    int newWidth = Math.max(getWidth() - 10 + m.getX() - start.x, 32), newHeight = Math.max(getHeight() - 10 + m.getY() - start.y, 32);
+                    int newWidth = Math.max(getWidth() - 10 + m.getX() - start.x, 32),
+                            newHeight = Math.max(getHeight() - 10 + m.getY() - start.y, 32);
                     resizeShape(newWidth, newHeight);
                     setSize(newWidth + 10, newHeight + 10);
                     start = m.getPoint();
@@ -65,6 +65,16 @@ public abstract class AutoPanel extends JPanel {
 
     public void deselect() {
         isSelected = false;
+        repaint();
+    }
+
+    public void setDrawColor(Color c) {
+        instance.setLineColor(c);
+        repaint();
+    }
+
+    public void setFillColor(Color c) {
+        instance.setFillColor(c);
         repaint();
     }
 

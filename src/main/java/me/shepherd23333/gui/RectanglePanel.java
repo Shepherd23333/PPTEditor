@@ -5,7 +5,7 @@ import org.apache.poi.xslf.usermodel.XSLFAutoShape;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 
-public class RectanglePanel extends AutoPanel {
+public class RectanglePanel extends AutoShapePanel {
     public RectanglePanel(XSLFAutoShape r) {
         super(r);
         Rectangle2D re = r.getAnchor();
