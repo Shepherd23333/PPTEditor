@@ -83,6 +83,12 @@ public class ImagePanel extends DraggablePanel {
         });
     }
 
+    @Override
+    public void select() {
+        isSelected = true;
+        repaint();
+    }
+
     public void deselect() {
         isSelected = false;
         repaint();

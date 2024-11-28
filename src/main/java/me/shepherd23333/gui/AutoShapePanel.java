@@ -63,6 +63,12 @@ public abstract class AutoShapePanel extends DraggablePanel {
         return ra.contains(m.getPoint());
     }
 
+    @Override
+    public void select() {
+        isSelected = true;
+        repaint();
+    }
+
     public void deselect() {
         isSelected = false;
         repaint();

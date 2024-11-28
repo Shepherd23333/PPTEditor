@@ -31,5 +31,6 @@ public abstract class DraggablePanel extends JPanel {
         });
     }
 
+    public abstract void select();
     public abstract void deselect();
 }

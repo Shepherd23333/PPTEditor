@@ -1,6 +1,7 @@
 package me.shepherd23333.gui;
 
 import me.shepherd23333.file.PPTLoader;
+import org.apache.poi.sl.usermodel.ShapeType;
 import org.apache.poi.util.IOUtils;
 import org.apache.poi.xslf.usermodel.*;
 
@@ -12,8 +13,7 @@ import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -24,10 +24,13 @@ import java.util.List;
 public class Base extends JFrame {
     private final GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
     private PPTLoader ppt;
+    private final String[] shapes = new String[]{"Line", "Textbox", "Rectangle", "Ellipse"};
     private int currentSlide = 0;
-    private Component selectedComponent;
+    private XSLFSlide slide;
     private JPanel statusBar;
-    private JPanel editBar, insertBar;
+    private DraggablePanel selected;
+    private DrawAction action = new DrawAction();
+    private JPanel editBar, insertBar, drawPanel;
     private JButton edit, insert;
     private JLayeredPane slidePanel;
     private JLabel slideNumber;
@@ -53,6 +56,7 @@ public class Base extends JFrame {
             isOpened = true;
             isCopied = false;
             currentSlide = 0;
+            slide = ppt.getSlide(0);
             showArea();
         });
         file.add(create);
@@ -120,14 +124,14 @@ public class Base extends JFrame {
 
         JComboBox<String> textFont = new JComboBox<>(ge.getAvailableFontFamilyNames());
         textFont.addActionListener(a -> {
-            TextboxPanel tb = (TextboxPanel) selectedComponent;
+            TextboxPanel tb = (TextboxPanel) selected;
             tb.setFont((String) textFont.getSelectedItem());
         });
         editBar.add(textFont);
 
         JComboBox<Integer> textSize = new JComboBox<>(new Integer[]{5, 10, 15, 20});
         textSize.addActionListener(a -> {
-            TextboxPanel tb = (TextboxPanel) selectedComponent;
+            TextboxPanel tb = (TextboxPanel) selected;
             tb.setSize((int) textSize.getSelectedItem());
         });
         textSize.setEditable(true);
@@ -135,39 +139,39 @@ public class Base extends JFrame {
 
         JComboBox<Color> textColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.GREEN, Color.BLUE});
         textColor.addActionListener(a -> {
-            TextboxPanel tb = (TextboxPanel) selectedComponent;
+            TextboxPanel tb = (TextboxPanel) selected;
             tb.setColor((Color) textColor.getSelectedItem());
         });
         editBar.add(textColor);
 
         JComboBox<Integer> textAlign = new JComboBox<>(new Integer[]{0, 1, 2, 3});
         textAlign.addActionListener(a -> {
-            TextboxPanel tb = (TextboxPanel) selectedComponent;
+            TextboxPanel tb = (TextboxPanel) selected;
             tb.setAlign((int) textAlign.getSelectedItem());
         });
         editBar.add(textAlign);
 
         JComboBox<Color> drawColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
         drawColor.addActionListener(a -> {
-            AutoShapePanel p = (AutoShapePanel) selectedComponent;
+            AutoShapePanel p = (AutoShapePanel) selected;
             p.setDrawColor((Color) drawColor.getSelectedItem());
         });
         editBar.add(drawColor);
 
         JComboBox<Color> fillColor = new JComboBox<>(new Color[]{Color.BLACK, Color.RED, Color.BLUE});
         fillColor.addActionListener(a -> {
-            AutoShapePanel p = (AutoShapePanel) selectedComponent;
-            p.setDrawColor((Color) fillColor.getSelectedItem());
+            AutoShapePanel p = (AutoShapePanel) selected;
+            p.setFillColor((Color) fillColor.getSelectedItem());
         });
         editBar.add(fillColor);
 
         edit.addActionListener(a -> {
-            textFont.setEnabled(selectedComponent instanceof TextboxPanel);
-            textSize.setEnabled(selectedComponent instanceof TextboxPanel);
-            textColor.setEnabled(selectedComponent instanceof TextboxPanel);
-            textAlign.setEnabled(selectedComponent instanceof TextboxPanel);
-            drawColor.setEnabled(selectedComponent instanceof AutoShapePanel || selectedComponent instanceof LinePanel);
-            fillColor.setEnabled(selectedComponent instanceof AutoShapePanel);
+            textFont.setEnabled(selected instanceof TextboxPanel);
+            textSize.setEnabled(selected instanceof TextboxPanel);
+            textColor.setEnabled(selected instanceof TextboxPanel);
+            textAlign.setEnabled(selected instanceof TextboxPanel);
+            drawColor.setEnabled(selected instanceof AutoShapePanel || selected instanceof LinePanel);
+            fillColor.setEnabled(selected instanceof AutoShapePanel);
             setToolBar(editBar);
         });
         bar.add(edit);
@@ -178,41 +182,27 @@ public class Base extends JFrame {
         JButton blank = new JButton("PPT");
         blank.addActionListener(a -> {
             ppt.createSlide(currentSlide);
-            insert.doClick();
+            insert.doClick(1);
         });
         insertBar.add(blank);
-
-        JButton textbox = new JButton("Textbox");
-        textbox.addActionListener(a -> {
-            XSLFSlide s = ppt.getSlide(currentSlide);
-            TextboxPanel tb = new TextboxPanel(s.createTextBox(), 100, 100, true);
-            slidePanel.add(tb, slidePanel.getComponentCount(), 0);
-            slidePanel.revalidate();
-            slidePanel.repaint();
-            tb.select();
-        });
-        insertBar.add(textbox);
 
         JButton picture = new JButton("Picture");
         picture.addActionListener(a -> insertPicture());
         insertBar.add(picture);
 
-        JButton line = new JButton("Line");
-        insertBar.add(line);
-
-        JButton rect = new JButton("Rectangle");
-        insertBar.add(rect);
-
-        JButton elp = new JButton("Ellipse");
-        insertBar.add(elp);
+        drawPanel = new JPanel();
+        drawPanel.setOpaque(false);
+        drawPanel.addMouseListener(action);
+        drawPanel.addMouseMotionListener(action);
+        for (String name : shapes) {
+            JButton b = new JButton(name);
+            b.addActionListener(action);
+            insertBar.add(b);
+        }
 
         insert.addActionListener(a -> {
-            blank.setEnabled(isOpened);
-            textbox.setEnabled(isOpened);
-            picture.setEnabled(isOpened);
-            line.setEnabled(isOpened);
-            rect.setEnabled(isOpened);
-            elp.setEnabled(isOpened);
+            for (Component c : insertBar.getComponents())
+                c.setEnabled(isOpened);
             setToolBar(insertBar);
         });
         bar.add(insert);
@@ -248,6 +238,7 @@ public class Base extends JFrame {
                 currentSlide = 0;
                 isOpened = true;
                 isCopied = false;
+                slide = ppt.getSlide(0);
                 showArea();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -413,18 +404,18 @@ public class Base extends JFrame {
         slidePanel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                selectedComponent = null;
+                selected = null;
                 label:
                 for (int i = slidePanel.getComponentCount(); i >= 0; i--)
                     for (Component c : slidePanel.getComponentsInLayer(i)) {
                         Point p = SwingUtilities.convertPoint(slidePanel, e.getPoint(), c);
                         if (c.contains(p)) {
-                            selectedComponent = c;
+                            selected = (DraggablePanel) c;
                             break label;
                         }
                     }
                 for (Component c : slidePanel.getComponents())
-                    if (c != selectedComponent && c instanceof DraggablePanel) {
+                    if (c != selected && c instanceof DraggablePanel) {
                         if (c instanceof TextboxPanel && ((TextboxPanel) c).isEmpty())
                             slidePanel.remove(c);
                         else
@@ -435,6 +426,8 @@ public class Base extends JFrame {
 
             @Override
             public void mouseReleased(MouseEvent e) {
+                if (selected != null)
+                    selected.select();
                 (getToolBar() == editBar ? edit : insert).doClick();
             }
         });
@@ -443,15 +436,19 @@ public class Base extends JFrame {
         jsp.setDividerLocation(200);
         add(jsp, BorderLayout.CENTER);
         revalidate();
+        drawPanel.setBounds(0, 0, slidePanel.getWidth(), slidePanel.getHeight());
+        slidePanel.add(drawPanel, -1, 0);
+        action.setGraphics(drawPanel.getGraphics());
         repaint();
     }
 
     private void drawSlide(int index) {
         slidePanel.removeAll();
 
-        XSLFSlide s = ppt.getSlide(index);
-        slidePanel.setBackground(s.getBackground().getFillColor());
-        List<XSLFShape> shapes = s.getShapes();
+        currentSlide = index;
+        slide = ppt.getSlide(index);
+        slidePanel.setBackground(slide.getBackground().getFillColor());
+        List<XSLFShape> shapes = slide.getShapes();
         for (int i = 0; i < shapes.size(); i++) {
             XSLFShape shape = shapes.get(i);
             try {
@@ -465,15 +462,11 @@ public class Base extends JFrame {
                     TextboxPanel text = new TextboxPanel((XSLFTextBox) shape);
                     slidePanel.add(text, i, 0);
                 } else if (shape instanceof XSLFAutoShape) {
-                    JPanel p = new JPanel();
-                    switch (((XSLFAutoShape) shape).getShapeType()) {
-                        case RECT:
-                            p = new RectanglePanel((XSLFAutoShape) shape);
-                            break;
-                        case ELLIPSE:
-                            p = new EllipsePanel((XSLFAutoShape) shape);
-                            break;
-                    }
+                    JPanel p = switch (((XSLFAutoShape) shape).getShapeType()) {
+                        case RECT -> new RectanglePanel((XSLFAutoShape) shape);
+                        case ELLIPSE -> new EllipsePanel((XSLFAutoShape) shape);
+                        default -> new JPanel();
+                    };
                     slidePanel.add(p, i, 0);
                 }
             } catch (Exception e) {
@@ -488,7 +481,6 @@ public class Base extends JFrame {
     private void to(int index) {
         if (0 <= index && index < ppt.totalSlides) {
             drawSlide(index);
-            currentSlide = index;
             slideNumber.setText("PPT " + (currentSlide + 1) + "/" + ppt.totalSlides);
         }
     }
@@ -501,5 +493,129 @@ public class Base extends JFrame {
     private void toNext() {
         if (currentSlide < ppt.totalSlides)
             to(currentSlide + 1);
+    }
+
+    private class DrawAction implements MouseListener, MouseMotionListener, ActionListener {
+        private Graphics g;
+        private String type;
+        private int startX;
+        private int startY;
+        private int curX;
+        private int curY;
+        private boolean isDrawing = false;
+
+        public void setGraphics(Graphics g) {
+            this.g = g;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent a) {
+            type = a.getActionCommand();
+            isDrawing = true;
+            slidePanel.setLayer(drawPanel, 114514);
+        }
+
+        @Override
+        public void mousePressed(MouseEvent m) {
+            if (isDrawing) {
+                startX = m.getX();
+                startY = m.getY();
+                g.setColor(Color.BLACK);
+            }
+            Point p = SwingUtilities.convertPoint(m.getComponent(), m.getPoint(), slidePanel);
+            MouseEvent me = new MouseEvent(slidePanel, m.getID(), m.getWhen(), m.getModifiersEx(), p.x, p.y,
+                    m.getClickCount(), m.isPopupTrigger());
+            for (MouseListener l : slidePanel.getMouseListeners())
+                l.mousePressed(me);
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent m) {
+            if (isDrawing) {
+                slidePanel.setLayer(drawPanel, -1);
+                isDrawing = false;
+                int endX = m.getX(), endY = m.getY();
+                int width = Math.max(Math.abs(endX - startX), 32), height = Math.max(Math.abs(endY - startY), 32);
+                DraggablePanel p;
+                if (type.equals(shapes[0])) {
+                    XSLFConnectorShape l = slide.createConnector();
+                    l.setAnchor(new Rectangle(startX, startY, width, height));
+                    l.setFlipHorizontal(endX < startX);
+                    l.setFlipVertical(endY < startY);
+                    p = new LinePanel(l);
+                } else if (type.equals(shapes[1])) {
+                    XSLFTextBox tb = slide.createTextBox();
+                    tb.setAnchor(new Rectangle(Math.min(startX, endX), Math.min(startY, endY), width, height));
+                    p = new TextboxPanel(tb, true);
+                } else {
+                    XSLFAutoShape a = slide.createAutoShape();
+                    a.setAnchor(new Rectangle(Math.min(startX, endX), Math.min(startY, endY), width, height));
+                    a.setLineColor(Color.BLACK);
+                    a.setLineWidth(1.0);
+                    if (type.equals(shapes[2])) {
+                        a.setShapeType(ShapeType.RECT);
+                        p = new RectanglePanel(a);
+                    } else {
+                        a.setShapeType(ShapeType.ELLIPSE);
+                        p = new EllipsePanel(a);
+                    }
+                }
+                slidePanel.add(p, slide.getShapes().size() - 1, 0);
+                slidePanel.revalidate();
+                slidePanel.repaint();
+                if (selected != null)
+                    selected.deselect();
+                selected = p;
+                p.select();
+            }
+            Point p = SwingUtilities.convertPoint(m.getComponent(), m.getPoint(), slidePanel);
+            MouseEvent me = new MouseEvent(slidePanel, m.getID(), m.getWhen(), m.getModifiersEx(), p.x, p.y,
+                    m.getClickCount(), m.isPopupTrigger());
+            for (MouseListener l : slidePanel.getMouseListeners())
+                l.mouseReleased(me);
+        }
+
+        @Override
+        public void mouseDragged(MouseEvent e) {
+            int x = Math.min(startX, curX), y = Math.min(startY, curY), w = Math.abs(curX - startX), h = Math.abs(curY - startY);
+            g.setColor(Color.WHITE);
+            if (type.equals(shapes[0])) {
+                g.drawLine(startX, startY, curX, curY);
+                curX = e.getX();
+                curY = e.getY();
+                g.setColor(Color.BLACK);
+                g.drawLine(startX, startY, curX, curY);
+            } else {
+                g.fillRect(x - 5, y - 5, w + 10, h + 10);
+                curX = e.getX();
+                curY = e.getY();
+                x = Math.min(startX, curX);
+                y = Math.min(startY, curY);
+                w = Math.abs(curX - startX);
+                h = Math.abs(curY - startY);
+                g.setColor(Color.BLACK);
+                g.drawRect(x, y, w, h);
+            }
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent e) {
+
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+
+        }
+
+        @Override
+        public void mouseMoved(MouseEvent e) {
+
+        }
     }
 }

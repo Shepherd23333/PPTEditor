@@ -27,22 +27,21 @@ public class TextboxPanel extends DraggablePanel {
     private String selectedText;
 
     public TextboxPanel(XSLFTextBox tb) {
-        Rectangle2D r = tb.getAnchor();
-        init(tb, r.getX(), r.getY(), false);
+        init(tb, false);
     }
 
-    public TextboxPanel(XSLFTextBox tb, double x, double y, boolean in) {
-        init(tb, x, y, in);
+    public TextboxPanel(XSLFTextBox tb, boolean in) {
+        init(tb, in);
     }
 
-    private void init(XSLFTextBox tb, double x, double y, boolean in) {
+    private void init(XSLFTextBox tb, boolean in) {
         instance = tb;
         isNew = in;
         textPane = new JTextPane();
         Rectangle2D r = tb.getAnchor();
-        instance.setAnchor(new Rectangle2D.Double(x, y, r.getWidth(), r.getHeight()));
+        instance.setAnchor(new Rectangle2D.Double(r.getX(), r.getY(), r.getWidth(), r.getHeight()));
         textPane.setBounds(5, 5, (int) Math.max(r.getWidth(), 32), (int) Math.max(r.getHeight(), 32));
-        setBounds((int) (x - 5), (int) (y - 5), textPane.getWidth() + 10, textPane.getHeight() + 10);
+        setBounds((int) (r.getX() - 5), (int) (r.getY() - 5), textPane.getWidth() + 10, textPane.getHeight() + 10);
         setLayout(null);
         add(textPane);
         textPane.setEditable(true);
