@@ -1,6 +1,17 @@
-https://poi.apache.org/apidocs/5.0/  
-https://blog.csdn.net/csdnerM/article/details/139303495
+# PPTEditor
 
+一个简单的PPT编辑器。  
+本项目使用Gradle 8.10.1+Java 18.0.2+Apache POI 5.3.0制作。
+
+### 构建方法：
+
+直接运行setup.bat，或在项目目录下执行以下命令：
+
+```bash
+./gradlew build
+```
+
+打包的jar在build/libs目录下，可以直接运行。
 ### 基本功能：
 
 |                                               |                    |  
@@ -15,7 +26,7 @@ https://blog.csdn.net/csdnerM/article/details/139303495
 | 通过鼠标对幻灯片页面上已有的基本图形、线形、文字进行选取和移动               | :heavy_check_mark: |
 | 窗口中显示菜单与工具栏                                   | :heavy_check_mark: |  
 
-### 选做功能：
+### 额外功能：
 
 |                                       |                    |  
 |---------------------------------------|:------------------:|  

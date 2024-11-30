@@ -6,8 +6,10 @@ import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
 
+/**
+ * 椭圆组件
+ */
 public class EllipsePanel extends AutoShapePanel {
-
     public EllipsePanel(XSLFAutoShape e) {
         super(e);
         Rectangle2D r = e.getAnchor();
@@ -18,11 +20,16 @@ public class EllipsePanel extends AutoShapePanel {
     }
 
     @Override
-    protected void resizeShape(int width, int height) {
+    protected void resizeObject(int width, int height) {
         Ellipse2D.Double oldE = (Ellipse2D.Double) auto;
         auto = new Ellipse2D.Double(oldE.x, oldE.y, width, height);
     }
 
+    /**
+     * 无填充则取环状区域
+     *
+     * @param p the point
+     */
     @Override
     public boolean contains(Point p) {
         if (p == null)
